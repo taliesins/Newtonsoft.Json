@@ -31,6 +31,7 @@ using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Newtonsoft.Json.Serialization;
 using Newtonsoft.Json.Utilities;
 
 namespace Newtonsoft.Json.Converters
@@ -61,10 +62,10 @@ namespace Newtonsoft.Json.Converters
     /// <returns>The object value.</returns>
     public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
     {
-      return ReadValue(reader);
+		return ReadValue(reader, serializer);
     }
 
-    private object ReadValue(JsonReader reader)
+	private object ReadValue(JsonReader reader, JsonSerializer serializer)
     {
       while (reader.TokenType == JsonToken.Comment)
       {
@@ -75,9 +76,9 @@ namespace Newtonsoft.Json.Converters
       switch (reader.TokenType)
       {
         case JsonToken.StartObject:
-          return ReadObject(reader);
+			  return ReadObject(reader, serializer);
         case JsonToken.StartArray:
-          return ReadList(reader);
+			  return ReadList(reader, serializer);
         default:
           if (JsonReader.IsPrimitiveToken(reader.TokenType))
             return reader.Value;
@@ -86,7 +87,7 @@ namespace Newtonsoft.Json.Converters
       }
     }
 
-    private object ReadList(JsonReader reader)
+	private object ReadList(JsonReader reader, JsonSerializer serializer)
     {
       IList<object> list = new List<object>();
 
@@ -97,7 +98,7 @@ namespace Newtonsoft.Json.Converters
           case JsonToken.Comment:
             break;
           default:
-            object v = ReadValue(reader);
+			object v = ReadValue(reader, serializer);
 
             list.Add(v);
             break;
@@ -109,7 +110,7 @@ namespace Newtonsoft.Json.Converters
       throw JsonSerializationException.Create(reader, "Unexpected end when reading ExpandoObject.");
     }
 
-    private object ReadObject(JsonReader reader)
+	private object ReadObject(JsonReader reader, JsonSerializer serializer)
     {
       IDictionary<string, object> expandoObject = new ExpandoObject();
 
@@ -118,15 +119,38 @@ namespace Newtonsoft.Json.Converters
         switch (reader.TokenType)
         {
           case JsonToken.PropertyName:
-            string propertyName = reader.Value.ToString();
+			string propertyName = reader.Value.ToString();
+			if (!reader.Read())
+			  throw new Exception("Unexpected end.");
 
-            if (!reader.Read())
-              throw JsonSerializationException.Create(reader, "Unexpected end when reading ExpandoObject.");
+			object v = ReadValue(reader, serializer);
 
-            object v = ReadValue(reader);
+			if (propertyName == "$type")
+			{
+			  //Assume that this is always the first property
 
-            expandoObject[propertyName] = v;
-            break;
+			  Type objectType = null;
+			  objectType = ((string)v).StartsWith("System.Dynamic.ExpandoObject,")
+				  ? typeof(ExpandoObject)
+				  : Type.GetType((string)v, true);
+
+			  if (objectType != typeof(ExpandoObject))
+			  {
+				if (!reader.Read())
+					throw new Exception("Unexpected end.");
+
+			  	var jsonSerializerInternalReader = new JsonSerializerInternalReader(serializer);
+			  	var expandoTypedObject = jsonSerializerInternalReader.Deserialize(reader, objectType);
+
+			  	return expandoTypedObject;
+			  }
+			}
+			else
+			{
+				expandoObject[propertyName] = v;
+			}
+
+        	break;
           case JsonToken.Comment:
             break;
           case JsonToken.EndObject:

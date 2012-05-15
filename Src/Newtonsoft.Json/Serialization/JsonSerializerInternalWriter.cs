@@ -600,6 +600,38 @@ To fix this error either change the environment to be fully trusted, change the 
         }
       }
 
+#if !(NET35 || NET20 || WINDOWS_PHONE)
+
+	  if (HasFlag(resolvedTypeNameHandling, TypeNameHandling.Auto))
+	  {
+		  if (contract.CreatedType == typeof(ExpandoObject))
+		  {
+		  	//Add $type for ExpandoObject when called as root by default
+		  	return true;
+		  }
+
+		  if (member == null && containerContract != null && containerContract.UnderlyingType == typeof(object))
+		  {
+			  //We handling a dynamic ExpandoObject
+			  if (containerProperty != null && contract.UnderlyingType != containerProperty.PropertyType)
+			  {
+				//An IEnumerable of String (property name), Object (value) is a ExpandoObject
+			  	return true;
+			  }
+		  }
+	  }
+
+	  if (HasFlag(resolvedTypeNameHandling, TypeNameHandling.Objects))
+	  {
+		  if (member != null && member.TypeNameHandling != TypeNameHandling.None && contract.CreatedType == typeof(ExpandoObject))
+		  {
+			  //Add $type for ExpandoObject when called as a property by default
+			  return true;
+		  }
+	  }
+
+#endif
+
       return false;
     }
 

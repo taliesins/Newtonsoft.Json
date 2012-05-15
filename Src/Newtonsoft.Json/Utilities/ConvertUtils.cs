@@ -421,6 +421,20 @@ namespace Newtonsoft.Json.Utilities
       if (initialValue == null && ReflectionUtils.IsNullable(targetType))
         return null;
 
+	  //Array with 0 entries
+	  if (initialValue == null && targetType.IsArray)
+	  {
+		  return Array.CreateInstance(targetType.GetElementType(), 0);
+	  }
+
+	  //Array with 1 entry
+	  if (initialValue != null && targetType.IsArray && targetType.GetElementType() == initialValue.GetType())
+	  {
+		  var array = Array.CreateInstance(targetType.GetElementType(), 1);
+		  array.SetValue(initialValue, 0);
+		  return array;
+	  }
+
       if (TryConvert(initialValue, culture, targetType, out convertedValue))
         return convertedValue;
 

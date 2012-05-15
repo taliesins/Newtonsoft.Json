@@ -751,7 +751,7 @@ namespace Newtonsoft.Json.Converters
   /// </summary>
   public class XmlNodeConverter : JsonConverter
   {
-    private const string TextName = "#text";
+    internal const string TextName = "#text";
     private const string CommentName = "#comment";
     private const string CDataName = "#cdata-section";
     private const string WhitespaceName = "#whitespace";
